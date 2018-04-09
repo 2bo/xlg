@@ -18,7 +18,6 @@ def main():
         '-s', '--saveas', help='save as replaced file', metavar='save_as', nargs=1)
 
     args = parser.parse_args()
-    print(args)
 
     if args.replace is None:
         try:
@@ -73,24 +72,31 @@ def xlsx_replace(filename, regrex_str, replace_str, saveas=None):
                 if cell.value is not None:
                     value_str = str(cell.value)
                     number_format = cell.number_format
-                    print(type(cell.value))
                     replaced_str = re.sub(regrex_str, replace_str, value_str)
-                    
+
                     if value_str != replaced_str:
                         print('{sheet}\t{coordinate}\t{value_str}\t->\t{replaced_str}'.format(
                             sheet=sheet.title, coordinate=cell.coordinate, value_str=value_str, replaced_str=replaced_str))
-                        if isinstance(cell.value,str):
-                            cell.value = replaced_str
+                        replaced_value = None
+                        if isinstance(cell.value, str):
+                            replaced_value = replaced_str
                         elif is_int(replaced_str):
-                            cell.value = int(replaced_str)
-                        elif is_float(replace_str):
-                            cell.value = float(replaced_str)
-                            
+                            replaced_value = int(replaced_str)
+                        elif is_float(replaced_str):
+                            replaced_value = float(replaced_str)
+                        elif is_datetime(replaced_str):
+                            replaced_value = datetime.datetime.strptime(
+                                replaced_str, '%Y-%m-%d %H:%M:%S')
+                        else:
+                            replaced_value = replaced_str
+                        
                         cell.value = replaced_value
-                        cell.number_format = number_format
+                        if type(cell.value) == type(replaced_value):
+                            cell.number_format = number_format
     if saveas is None:
         saveas = filename
     workbook.save(saveas)
+
 
 def is_int(target_str):
     if re.match(r'^[-+]?[0-9]+$', target_str):
@@ -98,18 +104,21 @@ def is_int(target_str):
     else:
         return False
 
+
 def is_float(target_str):
-    if re.match(r'[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?',target_str):
+    if re.match(r'^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$', target_str):
         return True
     else:
         return False
 
+
 def is_datetime(target_str):
     try:
-        datetime.datetime.strptime(target_str, '%Y-%m%d %H:%M:%S')
+        datetime.datetime.strptime(target_str, '%Y-%m-%d %H:%M:%S')
         return True
     except ValueError:
         return False
+
 
 if __name__ == '__main__':
     main()
